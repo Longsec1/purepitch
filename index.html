@@ -76,6 +76,13 @@
 <body>
 
   <h1>PurePitch - Guitar Tuner</h1>
+  <label for="starting-string">Start Tuning From:</label>
+  <select id="starting-string">
+    <option value="low">Low E (E2)</option>
+    <option value="high">High E (E4)</option>
+  </select>
+  <button onclick="startTuning()">Start Tuning</button>
+
   <p id="note">Note: --</p>
   <p id="target-frequency">Target Frequency: -- Hz</p>
   <p id="frequency">Detected Frequency: -- Hz</p>
@@ -93,8 +100,9 @@
     const statusElem = document.getElementById('status');
     const targetFreqElem = document.getElementById('target-frequency');
     const tuningIndicator = document.getElementById('tuning-indicator');
+    const startingStringElem = document.getElementById('starting-string');
 
-    const tuningOrder = [
+    const tuningOrderLowToHigh = [
       { note: 'E2', frequency: 82.41 },
       { note: 'A2', frequency: 110.00 },
       { note: 'D3', frequency: 146.83 },
@@ -103,10 +111,13 @@
       { note: 'E4', frequency: 329.63 }
     ];
 
+    const tuningOrderHighToLow = [...tuningOrderLowToHigh].reverse();
+
     let currentStringIndex = 0;
+    let selectedTuningOrder = tuningOrderLowToHigh;
 
     function nextString() {
-      if (currentStringIndex < tuningOrder.length - 1) {
+      if (currentStringIndex < selectedTuningOrder.length - 1) {
         currentStringIndex++;
       } else {
         statusElem.innerText = "Tuning Complete!";
@@ -116,7 +127,14 @@
     }
 
     function getCurrentTarget() {
-      return tuningOrder[currentStringIndex];
+      return selectedTuningOrder[currentStringIndex];
+    }
+
+    function startTuning() {
+      const startingString = startingStringElem.value;
+      selectedTuningOrder = startingString === 'low' ? tuningOrderLowToHigh : tuningOrderHighToLow;
+      currentStringIndex = 0;
+      startTuner();
     }
 
     async function startTuner() {
@@ -198,9 +216,7 @@
         statusElem.className = 'out-of-tune';
       }
     }
-
-    startTuner();
   </script>
 
 </body>
-  </html>
+      </html>
