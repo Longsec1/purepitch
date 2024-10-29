@@ -38,19 +38,38 @@
     #tuning-bar {
       margin-top: 20px;
       width: 80%;
-      height: 20px;
+      height: 40px;
       background-color: #ddd;
       border-radius: 10px;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
     #tuning-indicator {
       width: 5px;
-      height: 20px;
+      height: 40px;
       background-color: blue;
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       transition: left 0.1s;
+    }
+    #tuning-bar span {
+      position: absolute;
+      font-size: 1em;
+      color: #555;
+    }
+    #low-label {
+      left: 10px;
+    }
+    #target-label {
+      left: 50%;
+      transform: translateX(-50%);
+      color: green;
+    }
+    #high-label {
+      right: 10px;
     }
   </style>
 </head>
@@ -62,6 +81,9 @@
   <p id="frequency">Detected Frequency: -- Hz</p>
   <div id="tuning-bar">
     <div id="tuning-indicator"></div>
+    <span id="low-label">Low</span>
+    <span id="target-label">Target</span>
+    <span id="high-label">High</span>
   </div>
   <p id="status">Status: Waiting for input...</p>
 
@@ -72,7 +94,6 @@
     const targetFreqElem = document.getElementById('target-frequency');
     const tuningIndicator = document.getElementById('tuning-indicator');
 
-    // Array of notes representing the tuning order from low E to high E
     const tuningOrder = [
       { note: 'E2', frequency: 82.41 },
       { note: 'A2', frequency: 110.00 },
@@ -84,18 +105,16 @@
 
     let currentStringIndex = 0;
 
-    // Update to the next string once tuning is close enough
     function nextString() {
       if (currentStringIndex < tuningOrder.length - 1) {
         currentStringIndex++;
       } else {
         statusElem.innerText = "Tuning Complete!";
         statusElem.className = 'in-tune';
-        return; // Stop further tuning checks
+        return;
       }
     }
 
-    // Get the current target note and frequency
     function getCurrentTarget() {
       return tuningOrder[currentStringIndex];
     }
@@ -154,12 +173,12 @@
           const frequencyDiff = frequency - targetFrequency;
           const tolerance = 2.5;
 
-          tuningIndicator.style.left = `${50 + (frequencyDiff / targetFrequency) * 50}%`;
+          const positionPercentage = 50 + (frequencyDiff / targetFrequency) * 50;
+          tuningIndicator.style.left = `${Math.max(0, Math.min(100, positionPercentage))}%`;
 
           if (Math.abs(frequencyDiff) < 0.5) {
             statusElem.innerText = 'Status: Perfectly In Tune';
             statusElem.className = 'in-tune';
-            // Proceed to next string if current string is in tune
             nextString();
           } else if (Math.abs(frequencyDiff) < tolerance) {
             statusElem.innerText = `Status: Slightly ${frequencyDiff > 0 ? 'Sharp' : 'Flat'}`;
@@ -180,7 +199,6 @@
       }
     }
 
-    // Start tuner on load
     startTuner();
   </script>
 
