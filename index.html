@@ -72,27 +72,32 @@
     const targetFreqElem = document.getElementById('target-frequency');
     const tuningIndicator = document.getElementById('tuning-indicator');
 
-    // Standard guitar tuning frequencies
-    const notes = {
-      'E2': 82.41,
-      'A2': 110.00,
-      'D3': 146.83,
-      'G3': 196.00,
-      'B3': 246.94,
-      'E4': 329.63
-    };
+    // Array of notes representing the tuning order from low E to high E
+    const tuningOrder = [
+      { note: 'E2', frequency: 82.41 },
+      { note: 'A2', frequency: 110.00 },
+      { note: 'D3', frequency: 146.83 },
+      { note: 'G3', frequency: 196.00 },
+      { note: 'B3', frequency: 246.94 },
+      { note: 'E4', frequency: 329.63 }
+    ];
 
-    // Get the closest note based on frequency
-    function getClosestNote(frequency) {
-      let closestNote = '';
-      let closestFreq = Infinity;
-      for (const [note, freq] of Object.entries(notes)) {
-        if (Math.abs(frequency - freq) < Math.abs(frequency - closestFreq)) {
-          closestFreq = freq;
-          closestNote = note;
-        }
+    let currentStringIndex = 0;
+
+    // Update to the next string once tuning is close enough
+    function nextString() {
+      if (currentStringIndex < tuningOrder.length - 1) {
+        currentStringIndex++;
+      } else {
+        statusElem.innerText = "Tuning Complete!";
+        statusElem.className = 'in-tune';
+        return; // Stop further tuning checks
       }
-      return { note: closestNote, frequency: closestFreq };
+    }
+
+    // Get the current target note and frequency
+    function getCurrentTarget() {
+      return tuningOrder[currentStringIndex];
     }
 
     async function startTuner() {
@@ -140,20 +145,22 @@
           }
 
           const frequency = audioContext.sampleRate / bestOffset;
-          const closestNote = getClosestNote(frequency);
+          const { note, frequency: targetFrequency } = getCurrentTarget();
 
-          noteElem.innerText = `Note: ${closestNote.note}`;
+          noteElem.innerText = `Note: ${note}`;
           frequencyElem.innerText = `Detected Frequency: ${frequency.toFixed(2)} Hz`;
-          targetFreqElem.innerText = `Target Frequency: ${closestNote.frequency} Hz`;
+          targetFreqElem.innerText = `Target Frequency: ${targetFrequency} Hz`;
 
-          const frequencyDiff = frequency - closestNote.frequency;
+          const frequencyDiff = frequency - targetFrequency;
           const tolerance = 2.5;
 
-          tuningIndicator.style.left = `${50 + (frequencyDiff / closestNote.frequency) * 50}%`;
+          tuningIndicator.style.left = `${50 + (frequencyDiff / targetFrequency) * 50}%`;
 
           if (Math.abs(frequencyDiff) < 0.5) {
             statusElem.innerText = 'Status: Perfectly In Tune';
             statusElem.className = 'in-tune';
+            // Proceed to next string if current string is in tune
+            nextString();
           } else if (Math.abs(frequencyDiff) < tolerance) {
             statusElem.innerText = `Status: Slightly ${frequencyDiff > 0 ? 'Sharp' : 'Flat'}`;
             statusElem.className = 'slightly-out';
@@ -178,4 +185,4 @@
   </script>
 
 </body>
-</html>
+  </html>
