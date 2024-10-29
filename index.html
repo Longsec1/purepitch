@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PurePitch - Guitar Tuner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      background-color: #f7f7f7;
+    }
+    #note {
+      font-size: 3em;
+      margin: 10px;
+    }
+    #status {
+      font-size: 1.5em;
+      margin-top: 10px;
+    }
+    #target-frequency {
+      font-size: 1.2em;
+      color: #555;
+    }
+    .in-tune {
+      color: green;
+    }
+    .out-of-tune {
+      color: red;
+    }
+    .slightly-out {
+      color: orange;
+    }
+    #tuning-bar {
+      margin-top: 20px;
+      width: 80%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      position: relative;
+    }
+    #tuning-indicator {
+      width: 5px;
+      height: 20px;
+      background-color: blue;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      transition: left 0.1s;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>PurePitch - Guitar Tuner</h1>
+  <p id="note">Note: --</p>
+  <p id="target-frequency">Target Frequency: -- Hz</p>
+  <p id="frequency">Detected Frequency: -- Hz</p>
+  <div id="tuning-bar">
+    <div id="tuning-indicator"></div>
+  </div>
+  <p id="status">Status: Waiting for input...</p>
+
+  <script>
+    const noteElem = document.getElementById('note');
+    const frequencyElem = document.getElementById('frequency');
+    const statusElem = document.getElementById('status');
+    const targetFreqElem = document.getElementById('target-frequency');
+    const tuningIndicator = document.getElementById('tuning-indicator');
+
+    // Standard guitar tuning frequencies
+    const notes = {
+      'E2': 82.41,
+      'A2': 110.00,
+      'D3': 146.83,
+      'G3': 196.00,
+      'B3': 246.94,
+      'E4': 329.63
+    };
+
+    // Get the closest note based on frequency
+    function getClosestNote(frequency) {
+      let closestNote = '';
+      let closestFreq = Infinity;
+      for (const [note, freq] of Object.entries(notes)) {
+        if (Math.abs(frequency - freq) < Math.abs(frequency - closestFreq)) {
+          closestFreq = freq;
+          closestNote = note;
+        }
+      }
+      return { note: closestNote, frequency: closestFreq };
+    }
+
+    async function startTuner() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 2048;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Float32Array(bufferLength);
+
+        source.connect(analyser);
+
+        function detectPitch() {
+          analyser.getFloatTimeDomainData(dataArray);
+
+          let bestOffset = -1;
+          let bestCorrelation = 0;
+          let rms = 0;
+
+          for (let i = 0; i < bufferLength; i++) {
+            const val = dataArray[i];
+            rms += val * val;
+          }
+
+          rms = Math.sqrt(rms / bufferLength);
+          if (rms < 0.01) {
+            statusElem.innerText = "Status: No sound detected";
+            statusElem.className = '';
+            requestAnimationFrame(detectPitch);
+            return;
+          }
+
+          for (let offset = 0; offset < bufferLength; offset++) {
+            let correlation = 0;
+            for (let i = 0; i < bufferLength - offset; i++) {
+              correlation += dataArray[i] * dataArray[i + offset];
+            }
+            if (correlation > bestCorrelation) {
+              bestCorrelation = correlation;
+              bestOffset = offset;
+            }
+          }
+
+          const frequency = audioContext.sampleRate / bestOffset;
+          const closestNote = getClosestNote(frequency);
+
+          noteElem.innerText = `Note: ${closestNote.note}`;
+          frequencyElem.innerText = `Detected Frequency: ${frequency.toFixed(2)} Hz`;
+          targetFreqElem.innerText = `Target Frequency: ${closestNote.frequency} Hz`;
+
+          const frequencyDiff = frequency - closestNote.frequency;
+          const tolerance = 2.5;
+
+          tuningIndicator.style.left = `${50 + (frequencyDiff / closestNote.frequency) * 50}%`;
+
+          if (Math.abs(frequencyDiff) < 0.5) {
+            statusElem.innerText = 'Status: Perfectly In Tune';
+            statusElem.className = 'in-tune';
+          } else if (Math.abs(frequencyDiff) < tolerance) {
+            statusElem.innerText = `Status: Slightly ${frequencyDiff > 0 ? 'Sharp' : 'Flat'}`;
+            statusElem.className = 'slightly-out';
+          } else {
+            statusElem.innerText = `Status: ${frequencyDiff > 0 ? 'Sharp' : 'Flat'}`;
+            statusElem.className = 'out-of-tune';
+          }
+
+          requestAnimationFrame(detectPitch);
+        }
+
+        detectPitch();
+      } catch (err) {
+        console.error('Error accessing microphone:', err);
+        statusElem.innerText = 'Microphone access denied or unavailable.';
+        statusElem.className = 'out-of-tune';
+      }
+    }
+
+    // Start tuner on load
+    startTuner();
+  </script>
+
+</body>
+</html>
